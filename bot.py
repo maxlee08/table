@@ -9,8 +9,8 @@ import os
 app = Flask(__name__)
 
 # LINE API 配置
-line_bot_api = LineBotApi('iwDXOBNGbSA02uFDBxiLiempxEtVDtFWTUoSyiTaQZqGHo8IRywesd3TsuckYuBKzL6ID0YdvCyiijQhM9m7QA38JYP1lmmJf2IpmnQOUfntpiIOWhJ5QPYmekUBmyzi3A0IdyWJItTGeV67Yt8z7gdB04t89/1O/w1cDnyilFU=')  # 替換為您的 CHANNEL_ACCESS_TOKEN
-handler = WebhookHandler('ed84881ce5a0fcabbd639ee023940ad6')  # 替換為您的 CHANNEL_SECRET
+line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')  # 替換為您的 CHANNEL_ACCESS_TOKEN
+handler = WebhookHandler('YOUR_CHANNEL_SECRET')  # 替換為您的 CHANNEL_SECRET
 
 # 資料庫連線配置
 db_config = {
@@ -41,39 +41,52 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text.strip()
-    response_text = ""  # 預設的回應文字
+    line_user_id = event.source.user_id  # 取得 LINE 用戶的 user_id
+
+    # 取得 LINE 用戶的資料（例如顯示名稱）
+    try:
+        profile = line_bot_api.get_profile(line_user_id)
+        line_user_name = profile.display_name  # 用戶的顯示名稱
+        line_user_picture = profile.picture_url  # 用戶的頭像 URL
+    except Exception as e:
+        app.logger.error(f"無法取得用戶資料: {e}")
+        line_user_name = "用戶"
+        line_user_picture = None
 
     # 連線至 MySQL 資料庫
     connection = pymysql.connect(**db_config)
     try:
         with connection.cursor() as cursor:
-            # 查詢使用者是否存在
-            cursor.execute("SELECT id FROM users WHERE username=%s", (event.source.user_id,))
+            # 如果該用戶還未存在，則插入資料
+            cursor.execute("SELECT * FROM users WHERE user_id=%s", (line_user_id,))
             user = cursor.fetchone()
-            if not user:
-                response_text = "抱歉，我找不到您的帳號，請確保您已註冊。"
-            else:
-                # 根據使用者輸入的內容查詢資料
-                if user_message == "查詢電費":
-                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (event.source.user_id,))
-                    result = cursor.fetchone()
-                    
-                    if result:
-                        response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
-                    else:
-                        response_text = "找不到您的用電紀錄。"
 
-                elif user_message == "查詢用電紀錄":
-                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (event.source.user_id,))
-                    results = cursor.fetchall()
-                    
-                    if results:
-                        records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
-                        response_text = f"您的最近 5 筆用電紀錄:\n{records}"
-                    else:
-                        response_text = "找不到您的用電紀錄。"
+            if not user:
+                # 如果用戶不存在，插入新用戶資料
+                cursor.execute("INSERT INTO users (user_id, user_name) VALUES (%s, %s)", (line_user_id, line_user_name))
+                connection.commit()
+
+            # 處理用戶訊息
+            if user_message == "查詢電費":
+                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (line_user_id,))
+                result = cursor.fetchone()
+                
+                if result:
+                    response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
                 else:
-                    response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
+                    response_text = "找不到您的用電紀錄。"
+
+            elif user_message == "查詢用電紀錄":
+                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (line_user_id,))
+                results = cursor.fetchall()
+                
+                if results:
+                    records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
+                    response_text = f"您的最近 5 筆用電紀錄:\n{records}"
+                else:
+                    response_text = "找不到您的用電紀錄。"
+            else:
+                response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
 
         # 傳送回應給使用者
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
