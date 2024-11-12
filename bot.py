@@ -14,8 +14,8 @@ handler = WebhookHandler('ed84881ce5a0fcabbd639ee023940ad6')  # 請用您自己�
 
 db_config = {
     'host': '114.35.141.12',  # 使用公共 IP
-    'user': 'root',
-    'password': '',  # 如果有設密碼，請填寫
+    'user': 'Max',
+    'password': 'table0813',  # 如果有設密碼，請填寫
     'db': 'table0813',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
