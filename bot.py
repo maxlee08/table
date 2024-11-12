@@ -21,7 +21,6 @@ db_config = {
     'cursorclass': pymysql.cursors.DictCursor
 }
 
-# /callback 路由，用於接收 LINE Webhook 請求
 @app.route("/callback", methods=['POST'])
 def callback():
     if request.method == 'POST':
