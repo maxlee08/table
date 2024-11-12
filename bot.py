@@ -19,10 +19,13 @@ db_config = {
     'host': '114.35.141.12',  # 使用公共 IP
     'user': 'Max',
     'password': 'table0813',  # 替換為您的資料庫密碼
-    'db': 'table0813',
+    'db': 'table0814',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
 }
+
+# 固定的用戶 ID，假設該用戶是唯一的
+USER_ID = 'U41c59545fe9b0a790446e46dedee4d92'  # 這應該是您指定的唯一用戶 ID
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -45,6 +48,12 @@ def handle_message(event):
     user_message = event.message.text.strip()
     response_text = ""  # 預設的回應文字
 
+    # 確保來自 LINE 的訊息是來自唯一的用戶
+    if event.source.user_id != USER_ID:
+        response_text = "抱歉，這個服務只對指定用戶開放。"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        return
+
     # 連線至 MySQL 資料庫
     connection = pymysql.connect(**db_config)
     try:
@@ -52,7 +61,7 @@ def handle_message(event):
             # 根據使用者輸入的內容查詢資料
             if user_message == "查詢電費":
                 try:
-                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (event.source.user_id,))
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (USER_ID,))
                     result = cursor.fetchone()
                     app.logger.info(f"查詢結果: {result}")  # 記錄查詢結果
                     
@@ -66,7 +75,7 @@ def handle_message(event):
 
             elif user_message == "查詢用電紀錄":
                 try:
-                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (event.source.user_id,))
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (USER_ID,))
                     results = cursor.fetchall()
                     app.logger.info(f"查詢紀錄結果: {results}")  # 記錄查詢結果
                     
