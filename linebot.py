@@ -74,6 +74,11 @@ def handle_message(event):
         # 傳送回應給使用者
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
     
+    except Exception as e:
+        app.logger.error(f"資料庫查詢錯誤: {e}")
+        response_text = "抱歉，發生了一些錯誤，請稍後再試。"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+    
     finally:
         connection.close()
 
