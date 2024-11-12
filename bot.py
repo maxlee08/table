@@ -82,6 +82,11 @@ def handle_message(event):
     finally:
         connection.close()
 
+# 新增根路由，避免 404 錯誤
+@app.route('/')
+def home():
+    return "Flask bot is running!"
+
 # 啟動 Flask 應用程式
 if __name__ == "__main__":
     # 獲取 Render 上的端口，如果沒有設定則使用 8000
