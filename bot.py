@@ -4,13 +4,15 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import pymysql.cursors
 import os
+import logging
 
-# 初始化 Flask 應用程式
+# 設定日誌配置
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 
 # LINE API 配置
-line_bot_api = LineBotApi('iwDXOBNGbSA02uFDBxiLiempxEtVDtFWTUoSyiTaQZqGHo8IRywesd3TsuckYuBKzL6ID0YdvCyiijQhM9m7QA38JYP1lmmJf2IpmnQOUfntpiIOWhJ5QPYmekUBmyzi3A0IdyWJItTGeV67Yt8z7gdB04t89/1O/w1cDnyilFU=')  # 替換為您的 CHANNEL_ACCESS_TOKEN
-handler = WebhookHandler('ed84881ce5a0fcabbd639ee023940ad6')  # 替換為您的 CHANNEL_SECRET
+line_bot_api = LineBotApi('your_channel_access_token')  # 替換為您的 CHANNEL_ACCESS_TOKEN
+handler = WebhookHandler('your_channel_secret')  # 替換為您的 CHANNEL_SECRET
 
 # 資料庫連線配置
 db_config = {
@@ -41,50 +43,42 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text.strip()
-    line_user_id = event.source.user_id  # 取得 LINE 用戶的 user_id
-
-    # 取得 LINE 用戶的資料（例如顯示名稱）
-    try:
-        profile = line_bot_api.get_profile(line_user_id)
-        line_user_name = profile.display_name  # 用戶的顯示名稱
-        line_user_picture = profile.picture_url  # 用戶的頭像 URL
-    except Exception as e:
-        app.logger.error(f"無法取得用戶資料: {e}")
-        line_user_name = "用戶"
-        line_user_picture = None
+    response_text = ""  # 預設的回應文字
 
     # 連線至 MySQL 資料庫
     connection = pymysql.connect(**db_config)
     try:
         with connection.cursor() as cursor:
-            # 如果該用戶還未存在，則插入資料
-            cursor.execute("SELECT * FROM users WHERE user_id=%s", (line_user_id,))
-            user = cursor.fetchone()
-
-            if not user:
-                # 如果用戶不存在，插入新用戶資料
-                cursor.execute("INSERT INTO users (user_id, user_name) VALUES (%s, %s)", (line_user_id, line_user_name))
-                connection.commit()
-
-            # 處理用戶訊息
+            # 根據使用者輸入的內容查詢資料
             if user_message == "查詢電費":
-                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (line_user_id,))
-                result = cursor.fetchone()
-                
-                if result:
-                    response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
-                else:
-                    response_text = "找不到您的用電紀錄。"
+                try:
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (event.source.user_id,))
+                    result = cursor.fetchone()
+                    app.logger.info(f"查詢結果: {result}")  # 記錄查詢結果
+                    
+                    if result:
+                        response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
+                    else:
+                        response_text = "找不到您的用電紀錄。"
+                except Exception as e:
+                    app.logger.error(f"查詢電費資料庫錯誤: {e}")
+                    response_text = "抱歉，查詢電費時發生錯誤，請稍後再試。"
 
             elif user_message == "查詢用電紀錄":
-                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (line_user_id,))
-                results = cursor.fetchall()
-                
-                if results:
-                    records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
-                    response_text = f"您的最近 5 筆用電紀錄:\n{records}"
-                else:
-                    response_text = "找不到您的用電紀錄。"
+                try:
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (event.source.user_id,))
+                    results = cursor.fetchall()
+                    app.logger.info(f"查詢紀錄結果: {results}")  # 記錄查詢結果
+                    
+                    if results:
+                        records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
+                        response_text = f"您的最近 5 筆用電紀錄:\n{records}"
+                    else:
+                        response_text = "找不到您的用電紀錄。"
+                except Exception as e:
+                    app.logger.error(f"查詢用電紀錄資料庫錯誤: {e}")
+                    response_text = "抱歉，查詢用電紀錄時發生錯誤，請稍後再試。"
+
             else:
                 response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
 
@@ -92,7 +86,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
     
     except Exception as e:
-        app.logger.error(f"資料庫查詢錯誤: {e}")
+        app.logger.error(f"處理訊息時發生錯誤: {e}")
         response_text = "抱歉，發生了一些錯誤，請稍後再試。"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
     
