@@ -47,27 +47,33 @@ def handle_message(event):
     connection = pymysql.connect(**db_config)
     try:
         with connection.cursor() as cursor:
-            # 根據使用者輸入的內容查詢資料
-            if user_message == "查詢電費":
-                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (event.source.user_id,))
-                result = cursor.fetchone()
-                
-                if result:
-                    response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
-                else:
-                    response_text = "找不到您的用電紀錄。"
-
-            elif user_message == "查詢用電紀錄":
-                cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (event.source.user_id,))
-                results = cursor.fetchall()
-                
-                if results:
-                    records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
-                    response_text = f"您的最近 5 筆用電紀錄:\n{records}"
-                else:
-                    response_text = "找不到您的用電紀錄。"
+            # 查詢使用者是否存在
+            cursor.execute("SELECT id FROM users WHERE username=%s", (event.source.user_id,))
+            user = cursor.fetchone()
+            if not user:
+                response_text = "抱歉，我找不到您的帳號，請確保您已註冊。"
             else:
-                response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
+                # 根據使用者輸入的內容查詢資料
+                if user_message == "查詢電費":
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (event.source.user_id,))
+                    result = cursor.fetchone()
+                    
+                    if result:
+                        response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
+                    else:
+                        response_text = "找不到您的用電紀錄。"
+
+                elif user_message == "查詢用電紀錄":
+                    cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (event.source.user_id,))
+                    results = cursor.fetchall()
+                    
+                    if results:
+                        records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
+                        response_text = f"您的最近 5 筆用電紀錄:\n{records}"
+                    else:
+                        response_text = "找不到您的用電紀錄。"
+                else:
+                    response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
 
         # 傳送回應給使用者
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
