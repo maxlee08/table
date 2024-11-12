@@ -12,11 +12,10 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('iwDXOBNGbSA02uFDBxiLiempxEtVDtFWTUoSyiTaQZqGHo8IRywesd3TsuckYuBKzL6ID0YdvCyiijQhM9m7QA38JYP1lmmJf2IpmnQOUfntpiIOWhJ5QPYmekUBmyzi3A0IdyWJItTGeV67Yt8z7gdB04t89/1O/w1cDnyilFU=')  # 請用您自己的 CHANNEL_ACCESS_TOKEN
 handler = WebhookHandler('ed84881ce5a0fcabbd639ee023940ad6')  # 請用您自己的 CHANNEL_SECRET
 
-# MySQL 資料庫連線配置
 db_config = {
-    'host': 'localhost',
+    'host': '114.35.141.12',  # 使用公共 IP
     'user': 'root',
-    'password': '',
+    'password': '',  # 如果有設密碼，請填寫
     'db': 'table0813',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
@@ -86,5 +85,5 @@ def handle_message(event):
 # 啟動 Flask 應用程式
 if __name__ == "__main__":
     # 獲取 Render 上的端口，如果沒有設定則使用 8000
-    port = int(os.environ.get("PORT", 8000))  # 使用 Render 上自動設定的端口
+    port = int(os.environ.get("PORT", 8000))  # 使用 Render 自動設定的端口
     app.run(host="0.0.0.0", port=port)
