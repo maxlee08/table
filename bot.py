@@ -9,8 +9,8 @@ import os
 app = Flask(__name__)
 
 # LINE API 配置
-line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')  # 替換為您的 CHANNEL_ACCESS_TOKEN
-handler = WebhookHandler('YOUR_CHANNEL_SECRET')  # 替換為您的 CHANNEL_SECRET
+line_bot_api = LineBotApi('iwDXOBNGbSA02uFDBxiLiempxEtVDtFWTUoSyiTaQZqGHo8IRywesd3TsuckYuBKzL6ID0YdvCyiijQhM9m7QA38JYP1lmmJf2IpmnQOUfntpiIOWhJ5QPYmekUBmyzi3A0IdyWJItTGeV67Yt8z7gdB04t89/1O/w1cDnyilFU=')  # 替換為您的 CHANNEL_ACCESS_TOKEN
+handler = WebhookHandler('ed84881ce5a0fcabbd639ee023940ad6')  # 替換為您的 CHANNEL_SECRET
 
 # 資料庫連線配置
 db_config = {
