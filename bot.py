@@ -7,7 +7,7 @@ import os
 import logging
 
 # 設定日誌配置
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)  # 設置為 DEBUG 以便記錄更多信息
 app = Flask(__name__)
 
 # LINE API 配置
@@ -63,7 +63,7 @@ def handle_message(event):
                 try:
                     cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 1", (USER_ID,))
                     result = cursor.fetchone()
-                    app.logger.info(f"查詢結果: {result}")  # 記錄查詢結果
+                    app.logger.debug(f"查詢結果: {result}")  # 記錄查詢結果
                     
                     if result:
                         response_text = f"您的最近一次用電量為 {result['usage_kwh']} kWh，電費為 {result['bill_amount']} 元。"
@@ -71,13 +71,13 @@ def handle_message(event):
                         response_text = "找不到您的用電紀錄。"
                 except Exception as e:
                     app.logger.error(f"查詢電費資料庫錯誤: {e}")
-                    response_text = "抱歉，查詢電費時發生錯誤，請稍後再試。"
+                    response_text = f"抱歉，查詢電費時發生錯誤: {e}"
 
             elif user_message == "查詢用電紀錄":
                 try:
                     cursor.execute("SELECT * FROM electricity_usage WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (USER_ID,))
                     results = cursor.fetchall()
-                    app.logger.info(f"查詢紀錄結果: {results}")  # 記錄查詢結果
+                    app.logger.debug(f"查詢紀錄結果: {results}")  # 記錄查詢結果
                     
                     if results:
                         records = "\n".join([f"用電量: {row['usage_kwh']} kWh, 電費: {row['bill_amount']} 元, 日期: {row['created_at']}" for row in results])
@@ -86,7 +86,7 @@ def handle_message(event):
                         response_text = "找不到您的用電紀錄。"
                 except Exception as e:
                     app.logger.error(f"查詢用電紀錄資料庫錯誤: {e}")
-                    response_text = "抱歉，查詢用電紀錄時發生錯誤，請稍後再試。"
+                    response_text = f"抱歉，查詢用電紀錄時發生錯誤: {e}"
 
             else:
                 response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
@@ -96,7 +96,7 @@ def handle_message(event):
     
     except Exception as e:
         app.logger.error(f"處理訊息時發生錯誤: {e}")
-        response_text = "抱歉，發生了一些錯誤，請稍後再試。"
+        response_text = f"抱歉，發生了一些錯誤，請稍後再試。錯誤: {e}"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
     
     finally:
