@@ -24,20 +24,22 @@ db_config = {
 # /callback 路由，用於接收 LINE Webhook 請求
 @app.route("/callback", methods=['POST'])
 def callback():
-    # 取得 X-Line-Signature 標頭
-    signature = request.headers['X-Line-Signature']
+    if request.method == 'POST':
+        # 取得 X-Line-Signature 標頭
+        signature = request.headers['X-Line-Signature']
+        body = request.get_data(as_text=True)
+        app.logger.info("Request body: " + body)
 
-    # 取得訊息主體
-    body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
-
-    # 驗證 Webhook
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-
-    return 'OK'
+        try:
+            handler.handle(body, signature)
+        except InvalidSignatureError:
+            app.logger.error("Invalid signature")
+            abort(400)
+        
+        return 'OK'
+    else:
+        app.logger.error("Invalid HTTP method")
+        abort(405)
 
 # 處理文字訊息事件
 @handler.add(MessageEvent, message=TextMessage)
@@ -91,4 +93,5 @@ def home():
 if __name__ == "__main__":
     # 獲取 Render 上的端口，如果沒有設定則使用 8000
     port = int(os.environ.get("PORT", 8000))  # 使用 Render 自動設定的端口
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
+
