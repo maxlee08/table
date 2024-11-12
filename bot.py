@@ -5,6 +5,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import pymysql.cursors
 import os
 import logging
+import traceback
 
 # 設定日誌配置
 logging.basicConfig(level=logging.DEBUG)  # 設置為 DEBUG 以便記錄更多信息
@@ -51,7 +52,11 @@ def handle_message(event):
     # 確保來自 LINE 的訊息是來自唯一的用戶
     if event.source.user_id != USER_ID:
         response_text = "抱歉，這個服務只對指定用戶開放。"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        try:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        except Exception as e:
+            error_message = f"發送錯誤訊息時發生錯誤: {str(e)}\n{traceback.format_exc()}"
+            app.logger.error(error_message)
         return
 
     # 連線至 MySQL 資料庫
@@ -70,8 +75,9 @@ def handle_message(event):
                     else:
                         response_text = "找不到您的用電紀錄。"
                 except Exception as e:
-                    app.logger.error(f"查詢電費資料庫錯誤: {e}")
-                    response_text = f"抱歉，查詢電費時發生錯誤: {e}"
+                    error_message = f"查詢電費資料庫錯誤: {str(e)}\n{traceback.format_exc()}"
+                    app.logger.error(error_message)
+                    response_text = "抱歉，查詢電費時發生錯誤，請稍後再試。"
 
             elif user_message == "查詢用電紀錄":
                 try:
@@ -85,19 +91,29 @@ def handle_message(event):
                     else:
                         response_text = "找不到您的用電紀錄。"
                 except Exception as e:
-                    app.logger.error(f"查詢用電紀錄資料庫錯誤: {e}")
-                    response_text = f"抱歉，查詢用電紀錄時發生錯誤: {e}"
+                    error_message = f"查詢用電紀錄資料庫錯誤: {str(e)}\n{traceback.format_exc()}"
+                    app.logger.error(error_message)
+                    response_text = "抱歉，查詢用電紀錄時發生錯誤，請稍後再試。"
 
             else:
                 response_text = "請輸入 '查詢電費' 或 '查詢用電紀錄' 來查詢資料。"
 
         # 傳送回應給使用者
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        try:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        except Exception as e:
+            error_message = f"發送回應訊息錯誤: {str(e)}\n{traceback.format_exc()}"
+            app.logger.error(error_message)
     
     except Exception as e:
-        app.logger.error(f"處理訊息時發生錯誤: {e}")
-        response_text = f"抱歉，發生了一些錯誤，請稍後再試。錯誤: {e}"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        error_message = f"處理訊息時發生錯誤: {str(e)}\n{traceback.format_exc()}"
+        app.logger.error(error_message)
+        response_text = "抱歉，發生了一些錯誤，請稍後再試。"
+        try:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_text))
+        except Exception as reply_error:
+            error_message = f"發送錯誤訊息時發生錯誤: {str(reply_error)}\n{traceback.format_exc()}"
+            app.logger.error(error_message)
     
     finally:
         connection.close()
